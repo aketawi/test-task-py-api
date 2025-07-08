@@ -1,4 +1,5 @@
 
+from datetime import datetime
 from enum import Enum
 
 
@@ -19,7 +20,7 @@ class RequestCategory(Enum):
 class Request:
     id: int
     text: str
-    timetstamp: str
+    timetstamp: datetime
     status: RequestStatus
     sentiment: RequestSentiment
     category: RequestCategory

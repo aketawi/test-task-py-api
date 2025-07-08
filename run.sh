@@ -1,6 +1,9 @@
 #!/bin/env bash
 set -euo pipefail
 
+N8N_LOGFILE="n8n_log.log"
+API_LOGFILE="api_log.log"
+
 # set up Node.js dependencies and run n8n
 if which npm >/dev/null 2>&1; then
   npm install
@@ -8,8 +11,9 @@ if which npm >/dev/null 2>&1; then
   echo "===================="
   echo "Running n8n..."
   echo "===================="
+
+  echo -e "$(date)\n" >>"$N8N_LOGFILE"
   npx n8n | tee -a n8n_log.log &
-	PIDARRAY+=("$!")
 
 else
   echo "NPM not installed."
@@ -17,24 +21,18 @@ else
 fi
 
 # set up Python dependencies and run project
-if which uv >/dev/null 2>&1; then # using UV
+if which uv >/dev/null 2>&1; then
   uv sync
-
-  echo "===================="
-  echo "Running API..."
-  echo "===================="
-  uv run ./main.py | tee -a api_log.log &
-
-else # using virtual env
+else
   [[ -d ./.venv/ ]] || python -m venv .venv
-  source ./.venv/bin/activate
   pip install -r requirements.txt
-
+fi && {
+  source ./.venv/bin/activate
   echo "===================="
   echo "Running API..."
   echo "===================="
-  python3 ./main.py | tee -a api_log.log &
-fi
+  fastapi dev ./main.py | tee "$N8N_LOGFILE" &
+}
 
 # wait until all jobs exit
 wait < <(jobs -p)
