@@ -13,7 +13,7 @@ if which npm >/dev/null 2>&1; then
   echo "===================="
 
   echo -e "$(date)\n" >>"$N8N_LOGFILE"
-  npx n8n | tee -a n8n_log.log &
+  npx n8n | tee -a >>"$N8N_LOGFILE" &
 
 else
   echo "NPM not installed."
@@ -28,11 +28,14 @@ else
   pip install -r requirements.txt
 fi && {
   source ./.venv/bin/activate
+
   echo "===================="
   echo "Running API..."
   echo "===================="
-  fastapi dev ./main.py | tee "$N8N_LOGFILE" &
+
+  echo -e "$(date)\n" >>"$API_LOGFILE"
+  fastapi dev | tee -a "$API_LOGFILE" &
 }
 
-# wait until all jobs exit
+# block until all jobs exit
 wait < <(jobs -p)
