@@ -28,10 +28,6 @@ class RequestAPI(FastAPI):
             print("Could not initialize database:\n", e)
             exit(1)
 
-    def close(self):
-        self.con.close();
-        self.cur.close();
-
     async def write(self, item: RequestModel) -> sqlite3.Row:
         """Insert new entry into the database. And analyze it using external APIs."""
 
@@ -88,7 +84,7 @@ class RequestAPI(FastAPI):
 
         self.con.commit()
 
-    def read(self, id: int) -> sqlite3.Row:
+    async def read(self, id: int) -> sqlite3.Row:
         """Fetch one entry by its ID."""
         try:
             data = self.cur.execute("SELECT * FROM requests WHERE id = (?);", (id,)).fetchone()
@@ -109,7 +105,7 @@ class RequestAPI(FastAPI):
             )
         return data
 
-    def read_all(self) -> list[sqlite3.Row]:
+    async def read_all(self) -> list[sqlite3.Row]:
         """Fetch all entries from the database."""
         try:
             data: list[sqlite3.Row] = self.cur.execute("SELECT * FROM requests;").fetchall()
@@ -121,3 +117,48 @@ class RequestAPI(FastAPI):
                 headers={"X-Error": "Database error."},
             )
         return data
+
+    async def close(self, id: int):
+        """Change the status of an entry by ID to Closed."""
+        try:
+            data = self.cur.execute("SELECT * FROM requests WHERE id = (?);", (id,)).fetchone()
+            if not data:
+                raise sqlite3.DataError
+        except sqlite3.DataError as e:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No entry with the ID {id}",
+                headers={"X-Error": "Entry does not exist."},
+            )
+        except Exception as e:
+            print(e)
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error while reading the database. See logs for exception info.",
+                headers={"X-Error": "Database error."},
+            )
+
+        if data["status"] == RequestStatus.closed.value:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Request {id} is already closed.",
+                headers={"X-Error": "Trying to close a closed request."},
+            )
+
+        query = """
+            UPDATE requests
+            SET status = ?
+            WHERE id = ?;
+        """
+        try:
+            self.cur.execute(query, (RequestStatus.closed.value, id))
+        except Exception as e:
+            print(f"Error while updating database while closing entry {id}.")
+            print(e)
+            raise HTTPException(
+                status_code=500,
+                detail="Internal server error while writing to the database. See logs for exception info.",
+                headers={"X-Error": "Database error."},
+            )
+
+        self.con.commit()

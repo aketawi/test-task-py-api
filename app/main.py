@@ -1,4 +1,3 @@
-import os
 import dotenv
 if not dotenv.load_dotenv():
     if not dotenv.load_dotenv(".."):
@@ -19,7 +18,6 @@ async def post_request(item: models.RequestModel) -> dict[str, Any]:
     Creates a new database entry from the given POST request, provided it conforms to RequestModel.
     """
     new_request = await app.write(item)
-    # TODO: proper response
     return {
         "id": new_request["id"],
         "status": new_request["status"],
@@ -27,12 +25,20 @@ async def post_request(item: models.RequestModel) -> dict[str, Any]:
         "category": new_request["category"],
     }
 
+@app.get("/api/v1/requests/close/{id}")
+async def close_request(id: int) -> dict[str, Any]:
+    """
+    Closes a request from the database by its ID.
+    """
+    await app.close(id)
+    return {"message": f"Request {id} closed successfully."}
+
 @app.get("/api/v1/requests/")
 async def get_all_requests():
     """Fetches all requests stored in the database."""
-    return app.read_all()
+    return await app.read_all()
 
 @app.get("/api/v1/requests/{id}")
 async def get_request(id: int):
     """Fetches a request from the database by its ID."""
-    return app.read(id) 
+    return await app.read(id) 
